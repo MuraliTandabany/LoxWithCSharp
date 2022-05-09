@@ -26,11 +26,20 @@ public abstract class Stmt
     public Var(Token name, Expr? initializer)
     {
       this.name = name;
-      if (initializer != null)
-        this.initializer = initializer;
+      if (initializer != null) this.initializer = initializer;
     }
 
     public override T Accept<T>(IVisitor<T> visitor) => visitor.VisitVarStatement(this);
+  }
+
+  public class Block : Stmt
+  {
+    public readonly List<Stmt> statements;
+    public Block(List<Stmt> statements)
+    {
+      this.statements = statements;
+    }
+    public override T Accept<T>(IVisitor<T> visitor) => visitor.VisitBlockStatement(this);
   }
 
   public interface IVisitor<out T>
@@ -38,5 +47,6 @@ public abstract class Stmt
     T VisitPrintStatement(Print printStmt);
     T VisitExprStatement(Expression exprStmt);
     T VisitVarStatement(Var varStmt);
+    T VisitBlockStatement(Block blockStatement);
   }
 }

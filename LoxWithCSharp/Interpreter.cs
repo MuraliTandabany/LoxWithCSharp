@@ -6,14 +6,13 @@ namespace LoxWithCSharp;
 
 public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
 {
-  private readonly Environment _environment = new();
+  private Environment _environment = new();
 
   public void Interpret(List<Stmt> statements)
   {
     try
     {
-      foreach (var statement in statements)
-        Execute(statement);
+      foreach (var statement in statements) Execute(statement);
     }
     catch (RuntimeError error)
     {
@@ -25,17 +24,16 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
   {
     switch (@object)
     {
-    case null or Null:
-      return "nil";
-    case double:
-    {
-      var text = @object.ToString()!;
-      if (text.EndsWith(".0", StringComparison.Ordinal))
-        text = text[..^2];
-      return text;
-    }
-    default:
-      return @object.ToString()!;
+      case null or Null:
+        return "nil";
+      case double:
+      {
+        var text = @object.ToString()!;
+        if (text.EndsWith(".0", StringComparison.Ordinal)) text = text[..^2];
+        return text;
+      }
+      default:
+        return @object.ToString()!;
     }
   }
 
@@ -45,42 +43,42 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
     var right = Evaluate(expr.right);
     switch (expr.operatorToken.type)
     {
-    case TokenType.GreaterThan:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left > (double) right;
-    case TokenType.GreaterThanEquals:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left >= (double) right;
-    case TokenType.LessThan:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left < (double) right;
-    case TokenType.LessThanEquals:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left <= (double) right;
-    case TokenType.EqualsEquals:
-      return IsEqual(left, right);
-    case TokenType.ExclamationEquals:
-      return !IsEqual(left, right);
-    case TokenType.Minus:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left - (double) right;
-    case TokenType.Plus:
-      return left switch
-      {
-        double d when right is double right1 => d + right1,
-        string s when right is string right1 => s + right1,
-        double d when right is string s => d.ToString(CultureInfo.InvariantCulture) + s,
-        string s when right is double d => s + d.ToString(CultureInfo.InvariantCulture),
-        _ => throw new RuntimeError(expr.operatorToken,
-          "Operands must be numbers or strings.")
-      };
-    case TokenType.ForwardSlash:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left / (double) right;
-    case TokenType.Asterisk:
-      CheckNumberOperand(expr.operatorToken, left, right);
-      return (double) left * (double) right;
+      case TokenType.GreaterThan:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left > (double) right;
+      case TokenType.GreaterThanEquals:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left >= (double) right;
+      case TokenType.LessThan:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left < (double) right;
+      case TokenType.LessThanEquals:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left <= (double) right;
+      case TokenType.EqualsEquals:
+        return IsEqual(left, right);
+      case TokenType.ExclamationEquals:
+        return !IsEqual(left, right);
+      case TokenType.Minus:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left - (double) right;
+      case TokenType.Plus:
+        return left switch
+        {
+          double d when right is double right1 => d + right1,
+          string s when right is string right1 => s + right1,
+          double d when right is string s => d.ToString(CultureInfo.InvariantCulture) + s,
+          string s when right is double d => s + d.ToString(CultureInfo.InvariantCulture),
+          _ => throw new RuntimeError(expr.operatorToken, "Operands must be numbers or strings.")
+        };
+      case TokenType.ForwardSlash:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left / (double) right;
+      case TokenType.Asterisk:
+        CheckNumberOperand(expr.operatorToken, left, right);
+        return (double) left * (double) right;
     }
+
     // Unreachable.
     return new object();
   }
@@ -93,12 +91,13 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
     var right = Evaluate(expr.right);
     switch (expr.operatorToken.type)
     {
-    case TokenType.Exclamation:
-      return !IsTruthy(right);
-    case TokenType.Minus:
-      CheckNumberOperand(expr.operatorToken, right);
-      return -(double) right;
+      case TokenType.Exclamation:
+        return !IsTruthy(right);
+      case TokenType.Minus:
+        CheckNumberOperand(expr.operatorToken, right);
+        return -(double) right;
     }
+
     // Unreachable.
     return null!;
   }
@@ -106,6 +105,24 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
   public object VisitVariable(Expr.Variable expr) => _environment.Get(expr.name);
   private object Evaluate(Expr expr) => expr.Accept(this);
   private void Execute(Stmt stmt) => stmt.Accept(this);
+
+  private void ExecuteBlock(List<Stmt> statements, Environment environment)
+  {
+    var previous = this._environment;
+    try
+    {
+      this._environment = environment;
+
+      foreach (var statement in statements)
+      {
+        Execute(statement);
+      }
+    }
+    finally
+    {
+      this._environment = previous;
+    }
+  }
 
   private static bool IsTruthy(object objectA) =>
     objectA switch
@@ -124,15 +141,13 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
 
   private static void CheckNumberOperand(Token @operator, object operand)
   {
-    if (operand is double)
-      return;
+    if (operand is double) return;
     throw new RuntimeError(@operator, "Operand must be a number.");
   }
 
   private static void CheckNumberOperand(Token @operator, object operand, object operandTwo)
   {
-    if (operand is double && operandTwo is double)
-      return;
+    if (operand is double && operandTwo is double) return;
     throw new RuntimeError(@operator, "Operand must be a number.");
   }
 
@@ -146,8 +161,7 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
   public object VisitVarStatement(Stmt.Var stmt)
   {
     var value = new object();
-    if (stmt.initializer != null)
-      value = Evaluate(stmt.initializer);
+    if (stmt.initializer != null) value = Evaluate(stmt.initializer);
     _environment.Define(stmt.name.lexeme, value);
     return new object();
   }
@@ -164,6 +178,14 @@ public class Interpreter : IVisitor<object>, Stmt.IVisitor<object>
     Evaluate(exprStmt.expression);
     return new object();
   }
+
+  public object VisitBlockStatement(Stmt.Block blockStatement)
+  {
+    ExecuteBlock(blockStatement.statements, new Environment(_environment));
+    return new object();
+  }
 }
 
-internal class Null { }
+internal class Null
+{
+}

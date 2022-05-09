@@ -4,7 +4,10 @@ namespace LoxWithCSharp;
 
 public class Parser
 {
-  private sealed class ParseError : System.Exception { }
+  private sealed class ParseError : System.Exception
+  {
+  }
+
   private readonly List<Token> _tokens;
   private int _current;
   public Parser(List<Token> tokens) => this._tokens = tokens;
@@ -15,9 +18,9 @@ public class Parser
     while (!IsAtEnd())
     {
       var stmt = Declaration();
-      if (stmt != null)
-        statements.Add(stmt);
+      if (stmt != null) statements.Add(stmt);
     }
+
     return statements;
   }
 
@@ -25,9 +28,7 @@ public class Parser
   {
     try
     {
-      return Match(TokenType.Var)
-        ? VarDeclaration()
-        : Statement();
+      return Match(TokenType.Var) ? VarDeclaration() : Statement();
     }
     catch (ParseError)
     {
@@ -39,9 +40,8 @@ public class Parser
   private Expr Expression() => Assignment();
 
   private Stmt Statement() =>
-    Match(TokenType.Print)
-      ? PrintStatement()
-      : ExpressionStatement();
+    Match(TokenType.Print) ? PrintStatement() :
+    Match(TokenType.LeftBrace) ? new Stmt.Block(Block()) : ExpressionStatement();
 
   private Stmt PrintStatement()
   {
@@ -57,6 +57,20 @@ public class Parser
     return new Stmt.Expression(expr);
   }
 
+  private List<Stmt> Block()
+  {
+    List<Stmt> statements = new();
+
+    while (!Check(TokenType.RightBrace) && !IsAtEnd())
+    {
+      var stmt = Declaration();
+      if (stmt != null) statements.Add(stmt);
+    }
+
+    Consume(TokenType.RightBrace, "Expect '}' after block.");
+    return statements;
+  }
+
   private Expr Assignment()
   {
     var expr = Equality();
@@ -69,8 +83,10 @@ public class Parser
         var name = variable.name;
         return new Expr.AssignExpr(name, value);
       }
+
       Error(equals, "Invalid assignment target.");
     }
+
     return expr;
   }
 
@@ -78,8 +94,7 @@ public class Parser
   {
     var name = Consume(TokenType.Identifier, "Expect variable name.");
     Expr? initializer = null;
-    if (Match(TokenType.Equals))
-      initializer = Expression();
+    if (Match(TokenType.Equals)) initializer = Expression();
     Consume(TokenType.Semicolon, "Expect ';' after variable declaration.");
     return new Stmt.Var(name, initializer);
   }
@@ -93,6 +108,7 @@ public class Parser
       var right = Comparison();
       expr = new Expr.BinaryExpr(expr, @operator, right);
     }
+
     return expr;
   }
 
@@ -104,20 +120,19 @@ public class Parser
         Advance();
         return true;
       }
+
     return false;
   }
 
   private bool Check(TokenType type)
   {
-    if (IsAtEnd())
-      return false;
+    if (IsAtEnd()) return false;
     return Peek().type == type;
   }
 
   private Token Advance()
   {
-    if (!IsAtEnd())
-      _current++;
+    if (!IsAtEnd()) _current++;
     return Previous();
   }
 
@@ -128,13 +143,13 @@ public class Parser
   private Expr Comparison()
   {
     var expr = Term();
-    while (Match(TokenType.GreaterThan, TokenType.GreaterThanEquals, TokenType.LessThan,
-             TokenType.LessThanEquals))
+    while (Match(TokenType.GreaterThan, TokenType.GreaterThanEquals, TokenType.LessThan, TokenType.LessThanEquals))
     {
       var @operator = Previous();
       var right = Term();
       expr = new Expr.BinaryExpr(expr, @operator, right);
     }
+
     return expr;
   }
 
@@ -147,6 +162,7 @@ public class Parser
       var right = Factor();
       expr = new Expr.BinaryExpr(expr, @operator, right);
     }
+
     return expr;
   }
 
@@ -159,6 +175,7 @@ public class Parser
       var right = Unary();
       expr = new Expr.BinaryExpr(expr, @operator, right);
     }
+
     return expr;
   }
 
@@ -170,34 +187,30 @@ public class Parser
       var right = Unary();
       return new Expr.UnaryExpr(@operator, right);
     }
+
     return Primary();
   }
 
   private Expr Primary()
   {
-    if (Match(TokenType.False))
-      return new Expr.Literal(false, Previous());
-    if (Match(TokenType.True))
-      return new Expr.Literal(true, Previous());
-    if (Match(TokenType.Nil))
-      return new Expr.Literal(null, Previous());
-    if (Match(TokenType.Number, TokenType.String))
-      return new Expr.Literal(Previous().literal, Previous());
-    if (Match(TokenType.Identifier))
-      return new Expr.Variable(Previous());
+    if (Match(TokenType.False)) return new Expr.Literal(false, Previous());
+    if (Match(TokenType.True)) return new Expr.Literal(true, Previous());
+    if (Match(TokenType.Nil)) return new Expr.Literal(null, Previous());
+    if (Match(TokenType.Number, TokenType.String)) return new Expr.Literal(Previous().literal, Previous());
+    if (Match(TokenType.Identifier)) return new Expr.Variable(Previous());
     if (Match(TokenType.LeftParen))
     {
       var expr = Expression();
       Consume(TokenType.RightParen, "Expect ')' after expression.");
       return new Expr.Grouping(expr);
     }
+
     throw Error(Peek(), "Expect expression.");
   }
 
   private Token Consume(TokenType type, string message)
   {
-    if (Check(type))
-      return Advance();
+    if (Check(type)) return Advance();
     throw Error(Peek(), message);
   }
 
@@ -212,20 +225,20 @@ public class Parser
     Advance();
     while (!IsAtEnd())
     {
-      if (Previous().type == TokenType.Semicolon)
-        return;
+      if (Previous().type == TokenType.Semicolon) return;
       switch (Peek().type)
       {
-      case TokenType.Class:
-      case TokenType.Func:
-      case TokenType.Var:
-      case TokenType.For:
-      case TokenType.If:
-      case TokenType.While:
-      case TokenType.Print:
-      case TokenType.Return:
-        return;
+        case TokenType.Class:
+        case TokenType.Func:
+        case TokenType.Var:
+        case TokenType.For:
+        case TokenType.If:
+        case TokenType.While:
+        case TokenType.Print:
+        case TokenType.Return:
+          return;
       }
+
       Advance();
     }
   }
